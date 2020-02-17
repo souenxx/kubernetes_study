@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: jupyter
+spec:
+  serviceName: sample-statefulset
+  replicas: 3
+  selector:
+    matchLabels:
+      app: sample-app
+  template:
+    metadata:
+      labels:
+        app: sample-app
+    spec:
+      containers:
+        - name: jupyter-container
+          image: jupyter/base-notebook:latest
+          ports:
+            - containerPort: 8888
+          volumeMounts:
+          - name: www
+            mountPath: /home/jovyan/work
+  volumeClaimTemplates:
+  - metadata:
+      name: www
+    spec:
+      resources:
+        requests:
+          storage: 10G

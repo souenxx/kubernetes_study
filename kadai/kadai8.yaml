@@ -1,0 +1,65 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluent-config
+data:
+  fluent.conf: |
+    <source>
+      @type tail
+      path /logs/tick.log
+      tag tick
+      <parse>
+        @type none
+      </parse>
+    </source>
+    <filter tick>
+      @type record_transformer
+      enable_ruby true
+      <record>
+        message ${require 'time'; Time.iso8601(record["message"].to_s).strftime("%Y年%m月%d日 %H時%M分%S秒")}
+      </record>
+    </filter>
+    <match tick>
+      @type stdout
+    </match>
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tick-app
+spec:
+  selector:
+    matchLabels:
+      app: tick
+  template:
+    metadata:
+      labels:
+        app: tick
+    spec:
+      containers:
+        - name: alpine-container
+          image: alpine:3.9
+          command: ["sh","-c"]
+          args:
+          - |
+            touch /logs/tick.log
+            while :; do
+              date -Iseconds >> /logs/tick.log
+              sleep 1
+            done
+          volumeMounts:
+          - mountPath: /logs
+            name: log-volume
+        - name: fluentd-container
+          image: fluent/fluentd:v1.4-1
+          volumeMounts:
+          - mountPath: /logs
+            name: log-volume
+      volumes:
+        - name: log-volume
+          emptyDir: {}
+        - name: fluent-config
+            items:
+              - key: fluent.conf
+                path: /fluentd/etc
